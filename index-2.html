@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPX Tracker · Theo dõi đơn hàng</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; overflow-x: hidden;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: #e5e7eb; background-color: #070b16;
+    background-image:
+      radial-gradient(900px 500px at 0% -10%, rgba(255,106,61,.18), transparent 60%),
+      radial-gradient(800px 500px at 100% 0%, rgba(99,102,241,.22), transparent 60%);
+    background-attachment: fixed;
+  }
+  .orb { position: fixed; width: 460px; height: 460px; border-radius: 50%; filter: blur(100px); opacity: .3; z-index: -1; animation: float 18s ease-in-out infinite alternate; }
+  .orb.a { background: #ff6a3d; top: -160px; left: -140px; }
+  .orb.b { background: #6366f1; bottom: -200px; right: -160px; animation-delay: -8s; }
+  @keyframes float { to { transform: translate(70px, 50px) scale(1.12); } }
+
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 28px 20px 60px; }
+  h1 { margin: 0; font-size: 26px; background: linear-gradient(90deg, #fff, #ffb199); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  h2 { margin: 0; font-size: 17px; }
+  .muted { color: #94a3b8; font-size: 13px; margin: 4px 0 0; }
+  .msg { font-size: 13px; color: #94a3b8; }
+
+  /* Header */
+  .top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 26px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .logo {
+    width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center;
+    font-weight: 800; color: #fff; background: linear-gradient(145deg, #ff8a5c, #ee4d2d);
+    box-shadow: 0 14px 28px -8px rgba(238,77,45,.7), inset 0 1px 0 rgba(255,255,255,.4);
+    transform: perspective(300px) rotateX(14deg) rotateY(-14deg);
+  }
+  .account { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .account input { width: 170px; }
+
+  /* Nút & ô nhập */
+  .btn {
+    display: inline-block; padding: 10px 18px; border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.07); color: #fff;
+    font: inherit; font-size: 14px; cursor: pointer; box-shadow: 0 4px 0 rgba(0,0,0,.4);
+    transition: transform .15s, box-shadow .15s;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.4); }
+  .btn.primary { border-color: transparent; background: linear-gradient(180deg, #ff7a4d, #ee4d2d); box-shadow: 0 4px 0 #a92e14, 0 12px 24px -6px rgba(238,77,45,.5); }
+  .link-btn { background: none; border: none; color: #fca5a5; cursor: pointer; font: inherit; font-size: 13px; }
+  input, textarea {
+    background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.1); color: #fff;
+    border-radius: 12px; padding: 10px 14px; font: inherit; font-size: 14px; outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  input::placeholder, textarea::placeholder { color: #64748b; }
+  input:focus, textarea:focus { border-color: #ff6a3d; box-shadow: 0 0 0 4px rgba(255,106,61,.15); }
+  textarea { width: 100%; min-height: 90px; resize: vertical; }
+
+  /* Menu ngang 3D */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 18px; margin-bottom: 24px; perspective: 1000px; }
+  .tile {
+    --rx: 0deg; --ry: 0deg; --p: 0%; --c: #fff; --g: rgba(255,255,255,.2);
+    display: block; width: 100%; font: inherit; text-align: left; cursor: pointer; position: relative;
+    padding: 20px; border-radius: 22px; color: #fff; border: 1px solid rgba(255,255,255,.12);
+    background: linear-gradient(160deg, rgba(255,255,255,.1), rgba(255,255,255,.02));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 6px 0 rgba(0,0,0,.45), 0 30px 40px -18px var(--g);
+    transform: rotateX(var(--rx)) rotateY(var(--ry));
+    transform-style: preserve-3d;
+    transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s, border-color .25s, background .25s;
+  }
+  .tile:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 10px 0 rgba(0,0,0,.45), 0 40px 50px -20px var(--g); }
+  .tile.active { border-color: var(--c); background: linear-gradient(160deg, var(--g), rgba(255,255,255,.03)); }
+  .tile:focus-visible { outline: 2px solid var(--c); outline-offset: 3px; }
+  .t-top { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cbd5e1; font-weight: 500; }
+  .ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--g); font-size: 17px; }
+  .t-num { font-size: 44px; font-weight: 800; margin: 12px 0 10px; line-height: 1; color: var(--c); text-shadow: 0 0 24px var(--g); }
+  .bar { height: 6px; border-radius: 9px; background: rgba(255,255,255,.08); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: var(--p); background: var(--c); border-radius: 9px; box-shadow: 0 0 12px var(--c); transition: width .6s; }
+
+  /* Bố cục & panel kính mờ */
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 22px; align-items: start; }
+  .panel {
+    background: linear-gradient(160deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+    border: 1px solid rgba(255,255,255,.1); border-radius: 22px; padding: 22px;
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.1);
+  }
+  .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  #search { width: 240px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0 18px; }
+
+  /* Bảng */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; min-width: 600px; border-collapse: collapse; font-size: 14px; }
+  th { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; font-weight: 600; text-align: left; }
+  th, td { padding: 14px 12px; border-bottom: 1px solid rgba(255,255,255,.06); }
+  tbody tr { transition: background .15s; }
+  tbody tr:hover { background: rgba(255,255,255,.04); }
+  td a { color: #ffb199; font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 600; text-decoration: none; }
+  td a:hover { text-decoration: underline; }
+  .right { text-align: right; }
+  .empty { padding: 36px; text-align: center; color: #94a3b8; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; white-space: nowrap; background: rgba(255,255,255,.08); color: #cbd5e1;
+  }
+  .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 10px currentColor; }
+  .badge.ok { color: #4ade80; background: rgba(34,197,94,.12); }
+  .badge.cancel { color: #f87171; background: rgba(239,68,68,.12); }
+  .badge.transit { color: #60a5fa; background: rgba(59,130,246,.14); }
+  .badge.err { color: #fbbf24; background: rgba(251,191,36,.12); }
+
+  /* Lịch sử */
+  .log { list-style: none; margin: 0; padding: 0; max-height: 560px; overflow: auto; }
+  .log li { display: flex; flex-direction: column; gap: 3px; padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 13px; color: #e2e8f0; }
+  .log li.muted { margin: 0; }
+  .log time { font-size: 11px; color: #64748b; }
+
+  @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) { .t-num { font-size: 36px; } #search { width: 100%; } .account input { width: 100%; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="orb a"></div>
+<div class="orb b"></div>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">SPX</div>
+      <div>
+        <h1>Theo dõi đơn hàng</h1>
+        <p class="muted">Tra cứu, lưu lịch sử và cập nhật trạng thái tự động</p>
+      </div>
+    </div>
+    <div class="account">
+      <input id="userName" list="users" placeholder="Tài khoản" aria-label="Tên tài khoản">
+      <datalist id="users"></datalist>
+      <button class="btn" id="btnSwitch">Chuyển tài khoản</button>
+      <button class="btn" id="btnExport">Xuất dữ liệu</button>
+      <label class="btn" for="fileImport">Nhập dữ liệu</label>
+      <input type="file" id="fileImport" accept="application/json" hidden>
+    </div>
+  </header>
+
+  <nav class="tiles" id="tiles">
+    <button class="tile active" data-filter="all" style="--c:#a5b4fc;--g:rgba(99,102,241,.45)">
+      <div class="t-top"><span class="ico">📦</span>Tổng đơn</div>
+      <div class="t-num" data-count>0</div>
+      <div class="bar"><i></i></div>
+    </button>
+    <button class="tile" data-filter="delivered" style="--c:#4ade80;--g:rgba(34,197,94,.4)">
+      <div class="t-top"><span class="ico">✅</span>Đã giao thành công</div>
+      <div class="t-num" data-count>0</div>
+      <div class="bar"><i></i></div>
+    </button>
+    <button class="tile" data-filter="cancelled" style="--c:#f87171;--g:rgba(239,68,68,.4)">
+      <div class="t-top"><span class="ico">✖️</span>Đã huỷ</div>
+      <div class="t-num" data-count>0</div>
+      <div class="bar"><i></i></div>
+    </button>
+    <button class="tile" data-filter="in_transit" style="--c:#60a5fa;--g:rgba(59,130,246,.45)">
+      <div class="t-top"><span class="ico">🚚</span>Đang vận chuyển</div>
+      <div class="t-num" data-count>0</div>
+      <div class="bar"><i></i></div>
+    </button>
+  </nav>
+
+  <div class="layout">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Danh sách đơn</h2>
+        <input type="search" id="search" placeholder="🔍 Tìm mã vận đơn">
+      </div>
+      <textarea id="codes" placeholder="Dán mã vận đơn SPX, mỗi mã một dòng hoặc cách nhau bằng dấu phẩy..."></textarea>
+      <div class="actions">
+        <button class="btn primary" id="btnAdd">Thêm &amp; kiểm tra</button>
+        <button class="btn" id="btnRefresh">Cập nhật tất cả</button>
+        <span class="msg" id="msg"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Mã vận đơn</th><th>Trạng thái</th><th>Cập nhật</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="empty" id="empty"></div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="panel-head">
+        <h2>Lịch sử</h2>
+        <button class="link-btn" id="btnClearLog">Xoá lịch sử</button>
+      </div>
+      <ul class="log" id="log"></ul>
+    </aside>
+  </div>
+</div>
+
+<script>
+// ===== CẤU HÌNH =====
+const CONFIG = {
+  API_URL: '',                 // Để trống = chế độ demo. Điền URL backend khi có.
+  AUTO_REFRESH_MINUTES: 10,
+};
+const MAX_LOG = 200;
+const STATUS = {
+  delivered:  { label: 'Đã giao thành công', cls: 'ok' },
+  cancelled:  { label: 'Đã huỷ', cls: 'cancel' },
+  in_transit: { label: 'Đang vận chuyển', cls: 'transit' },
+};
+
+// ===== TRẠNG THÁI ỨNG DỤNG =====
+const orders = new Map();    // mã -> { code, status, statusText, updatedAt, loading, error }
+let history = [];            // [{ time, text }], mới nhất đứng đầu
+let currentFilter = 'all';
+let keyword = '';
+let currentUser = 'mặc định';
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtTime = iso => new Date(iso).toLocaleString('vi-VN');
+const setMsg = text => { $('msg').textContent = text; };
+const validCode = s => /^[A-Z0-9]{6,30}$/.test(s);
+const activeCodes = () => [...orders.values()]
+  .filter(o => o.status !== 'delivered' && o.status !== 'cancelled')
+  .map(o => o.code);
+
+// ===== LƯU TRỮ: mỗi tài khoản một bộ dữ liệu, lưu trong trình duyệt =====
+const storeKey = () => 'spx:data:' + currentUser;
+
+function snapshot() {
+  return {
+    orders: [...orders.values()].map(({ code, status, statusText, updatedAt }) => ({ code, status, statusText, updatedAt })),
+    history,
+  };
+}
+
+function save() {
+  try { localStorage.setItem(storeKey(), JSON.stringify(snapshot())); }
+  catch (e) { setMsg('Không lưu được: bộ nhớ trình duyệt đã đầy.'); }
+}
+
+function normalize(o) {
+  return {
+    code: o.code,
+    status: STATUS[o.status] ? o.status : null,
+    statusText: String(o.statusText || ''),
+    updatedAt: o.updatedAt || null,
+    loading: false,
+    error: false,
+  };
+}
+
+function load() {
+  orders.clear();
+  history = [];
+  try {
+    const d = JSON.parse(localStorage.getItem(storeKey())) || {};
+    (d.orders || []).filter(o => validCode(o.code)).forEach(o => orders.set(o.code, normalize(o)));
+    history = (d.history || []).filter(h => h && h.text && h.time);
+  } catch (e) { setMsg('Không đọc được dữ liệu đã lưu.'); }
+}
+
+function addLog(text) {
+  history = [{ time: new Date().toISOString(), text }, ...history].slice(0, MAX_LOG);
+}
+
+function openUser(name) {
+  currentUser = name.trim() || 'mặc định';
+  $('userName').value = currentUser;
+  localStorage.setItem('spx:currentUser', currentUser);
+  const users = JSON.parse(localStorage.getItem('spx:users') || '[]');
+  if (!users.includes(currentUser)) users.push(currentUser);
+  localStorage.setItem('spx:users', JSON.stringify(users));
+  $('users').innerHTML = users.map(u => `<option value="${esc(u)}"></option>`).join('');
+  load();
+  render();
+  checkCodes(activeCodes());
+}
+
+// ===== LẤY TRẠNG THÁI =====
+async function fetchStatus(code) {
+  if (!CONFIG.API_URL) return mockStatus(code);
+
+  const res = await fetch(`${CONFIG.API_URL}?code=${encodeURIComponent(code)}`);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const d = await res.json();   // backend trả về: { status, statusText, updatedAt }
+  const status = STATUS[d.status] ? d.status : 'in_transit';
+  return {
+    status,
+    statusText: d.statusText || STATUS[status].label,
+    updatedAt: d.updatedAt || new Date().toISOString(),
+  };
+}
+
+// Demo: sinh trạng thái cố định theo mã để thử giao diện
+function mockStatus(code) {
+  let h = 0;
+  for (const ch of code) h = (h * 31 + ch.charCodeAt(0)) % 1000003;
+  const pool = ['delivered', 'delivered', 'in_transit', 'in_transit', 'cancelled'];
+  const status = pool[h % pool.length];
+  return { status, statusText: STATUS[status].label, updatedAt: new Date().toISOString() };
+}
+
+async function checkCodes(codes) {
+  if (!codes.length) return;
+  const owner = currentUser;
+  codes.forEach(c => { const o = orders.get(c); if (o) Object.assign(o, { loading: true, error: false }); });
+  render();
+
+  const results = await Promise.allSettled(codes.map(fetchStatus));
+  if (owner !== currentUser) return;          // đã đổi tài khoản trong lúc chờ
+
+  results.forEach((r, i) => {
+    const o = orders.get(codes[i]);
+    if (!o) return;
+    const before = o.status;
+    o.loading = false;
+    if (r.status === 'fulfilled') {
+      Object.assign(o, r.value);
+      if (!before) addLog(`Kiểm tra ${o.code}: ${STATUS[o.status].label}`);
+      else if (before !== o.status) addLog(`${o.code}: ${STATUS[before].label} → ${STATUS[o.status].label}`);
+    } else {
+      o.error = true;
+    }
+  });
+  render();
+}
+
+// ===== THÊM / CẬP NHẬT =====
+function parseCodes(text) {
+  return [...new Set(text.split(/[\s,;]+/).map(s => s.trim().toUpperCase()).filter(validCode))];
+}
+
+$('btnAdd').onclick = async () => {
+  const codes = parseCodes($('codes').value);
+  if (!codes.length) return setMsg('Không tìm thấy mã vận đơn hợp lệ.');
+
+  const fresh = codes.filter(c => !orders.has(c));
+  fresh.forEach(c => orders.set(c, { code: c, status: null, statusText: '', updatedAt: null, loading: true, error: false }));
+  $('codes').value = '';
+  if (!fresh.length) return setMsg('Các mã này đã có trong danh sách.');
+
+  setMsg(`Đang kiểm tra ${fresh.length} mã...`);
+  await checkCodes(fresh);
+  setMsg(`Đã thêm ${fresh.length} mã.`);
+};
+
+$('btnRefresh').onclick = async () => {
+  if (!orders.size) return setMsg('Chưa có đơn nào để cập nhật.');
+  setMsg('Đang cập nhật tất cả...');
+  await checkCodes([...orders.keys()]);
+  setMsg('Đã cập nhật xong.');
+};
+
+// ===== TÀI KHOẢN, XUẤT / NHẬP, LỊCH SỬ =====
+$('btnSwitch').onclick = () => {
+  openUser($('userName').value);
+  setMsg(`Đang dùng tài khoản "${currentUser}".`);
+};
+$('userName').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnSwitch').click(); });
+
+$('btnExport').onclick = () => {
+  const data = { user: currentUser, exportedAt: new Date().toISOString(), ...snapshot() };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `spx-${currentUser}-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+$('fileImport').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const d = JSON.parse(await file.text());
+    const incoming = (d.orders || []).filter(o => validCode(o.code));
+    incoming.forEach(o => { if (!orders.has(o.code)) orders.set(o.code, normalize(o)); });
+    history = [...(d.history || []).filter(h => h && h.text && h.time), ...history].slice(0, MAX_LOG);
+    addLog(`Nhập ${incoming.length} đơn từ file`);
+    render();
+    setMsg(`Đã nhập ${incoming.length} đơn.`);
+  } catch (err) {
+    setMsg('File không hợp lệ.');
+  }
+});
+
+$('btnClearLog').onclick = () => {
+  if (!confirm('Xoá toàn bộ lịch sử của tài khoản này?')) return;
+  history = [];
+  render();
+};
+
+// ===== HIỂN THỊ =====
+function badge(o) {
+  if (o.loading) return '<span class="badge">Đang kiểm tra…</span>';
+  if (o.error) return '<span class="badge err">Lỗi tra cứu</span>';
+  if (!o.status) return '<span class="badge">Chưa có dữ liệu</span>';
+  const s = STATUS[o.status];
+  return `<span class="badge ${s.cls}">${esc(o.statusText || s.label)}</span>`;
+}
+
+function render() {
+  const all = [...orders.values()];
+
+  // Số đếm và thanh tiến độ của từng thẻ menu
+  const counts = { all: all.length, delivered: 0, cancelled: 0, in_transit: 0 };
+  all.forEach(o => { if (o.status) counts[o.status]++; });
+  for (const [key, n] of Object.entries(counts)) {
+    const tile = document.querySelector(`.tile[data-filter="${key}"]`);
+    tile.querySelector('[data-count]').textContent = n;
+    const pct = all.length ? (key === 'all' ? 100 : (n / all.length) * 100) : 0;
+    tile.style.setProperty('--p', pct + '%');
+  }
+
+  // Lọc theo thẻ menu và ô tìm kiếm
+  const list = all.filter(o =>
+    (currentFilter === 'all' || o.status === currentFilter) &&
+    o.code.includes(keyword.toUpperCase())
+  );
+
+  $('rows').innerHTML = list.map((o, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td><a href="https://spx.vn/track?${o.code}" target="_blank" rel="noopener">${o.code}</a></td>
+      <td>${badge(o)}</td>
+      <td class="muted">${o.updatedAt ? fmtTime(o.updatedAt) : '—'}</td>
+      <td class="right"><button class="link-btn" data-del="${o.code}">Xoá</button></td>
+    </tr>`).join('');
+
+  $('empty').textContent = list.length ? '' :
+    (all.length ? 'Không có đơn nào trong mục này.' : 'Chưa có đơn nào. Dán mã vận đơn ở trên để bắt đầu.');
+
+  $('log').innerHTML = history.length
+    ? history.map(h => `<li><time>${fmtTime(h.time)}</time>${esc(h.text)}</li>`).join('')
+    : '<li class="muted">Chưa có hoạt động nào.</li>';
+
+  save();
+}
+
+// ===== SỰ KIỆN =====
+document.querySelectorAll('.tile').forEach(t => {
+  t.addEventListener('mousemove', e => {
+    const r = t.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - 0.5;
+    const y = (e.clientY - r.top) / r.height - 0.5;
+    t.style.setProperty('--rx', (-y * 16).toFixed(1) + 'deg');
+    t.style.setProperty('--ry', (x * 16).toFixed(1) + 'deg');
+  });
+  t.addEventListener('mouseleave', () => {
+    t.style.setProperty('--rx', '0deg');
+    t.style.setProperty('--ry', '0deg');
+  });
+});
+
+$('tiles').addEventListener('click', e => {
+  const tile = e.target.closest('.tile');
+  if (!tile) return;
+  currentFilter = tile.dataset.filter;
+  document.querySelectorAll('.tile').forEach(t => t.classList.toggle('active', t === tile));
+  render();
+});
+
+$('search').addEventListener('input', e => {
+  keyword = e.target.value.trim();
+  render();
+});
+
+$('rows').addEventListener('click', e => {
+  const code = e.target.dataset.del;
+  if (!code) return;
+  orders.delete(code);
+  addLog(`Xoá ${code}`);
+  render();
+});
+
+// Tự cập nhật các đơn chưa hoàn tất
+setInterval(() => checkCodes(activeCodes()), CONFIG.AUTO_REFRESH_MINUTES * 60 * 1000);
+
+// Khởi động: mở đúng tài khoản đã dùng lần trước
+openUser(localStorage.getItem('spx:currentUser') || 'mặc định');
+</script>
+</body>
+</html>
